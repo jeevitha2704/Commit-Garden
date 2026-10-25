@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commit Garden</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌻</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--sky:#dff1f7;--grass:#bfe3a8;--soil:#8a6149;--soil2:#a87a5c;--ink:#2f3e34;--pink:#ff8fb1;--card:#fffdf7}
+.spring{--sky:#fbe3ee;--grass:#c9e8a8}.summer{--sky:#cdeefc;--grass:#a9dc8c}
+.autumn{--sky:#fde3c4;--grass:#e3c98a}.winter{--sky:#e4eef8;--grass:#dbe9e6}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:'Fredoka',system-ui,sans-serif;color:var(--ink);
+  background:linear-gradient(var(--sky) 0 38%,var(--grass) 38% 100%);padding:28px 16px 48px;transition:background .6s}
+main{max-width:1000px;margin:0 auto;position:relative;z-index:1}
+h1{font-size:clamp(2rem,6vw,3.4rem);margin:0 0 4px;font-weight:600;letter-spacing:-.5px}
+.sub{margin:0 0 20px;font-size:1.05rem}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+input{font:inherit;padding:12px 16px;border-radius:999px;border:3px solid var(--ink);background:var(--card);min-width:200px;flex:1;max-width:340px}
+button{font:inherit;font-weight:600;padding:12px 22px;border-radius:999px;border:3px solid var(--ink);background:var(--pink);color:var(--ink);cursor:pointer}
+button:hover{transform:translateY(-2px)}
+:focus-visible{outline:3px solid #5b7cff;outline-offset:2px}
+.plot{background:var(--soil);border:4px solid var(--ink);border-radius:22px;padding:14px;overflow-x:auto;box-shadow:0 8px 0 var(--ink)}
+.grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,30px);grid-auto-columns:30px;gap:3px;width:max-content;margin:0 auto}
+.c{display:grid;place-items:center;font-size:21px;line-height:1;border-radius:8px;background:var(--soil2);user-select:none}
+.c.e{opacity:.5;cursor:pointer}
+.c.e:hover{opacity:.9}
+.c.g{animation:pop .5s backwards cubic-bezier(.3,1.6,.5,1)}
+.c.g:hover{transform:scale(1.5);z-index:2;position:relative}
+.c.own{cursor:pointer;background:#b98d6c}
+.c.pad{visibility:hidden}
+@keyframes pop{from{transform:scale(0) rotate(-40deg)}}
+.persona,.stat,details{background:var(--card);border:3px solid var(--ink);border-radius:18px}
+.persona{padding:14px 20px;margin-top:20px}
+.persona h2{margin:0;font-size:1.7rem}
+.persona p{margin:4px 0 0}
+.persona .fact{font-size:.95rem;opacity:.8}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.badge{background:var(--card);border:3px solid var(--ink);border-radius:999px;padding:6px 14px;font-size:.95rem}
+.msg{margin:16px 0 0;font-size:1.15rem;min-height:1.5em}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+.stat{padding:10px 18px;min-width:130px}
+.stat b{display:block;font-size:1.8rem}
+.legend{margin-top:14px;font-size:.95rem}
+details{margin-top:22px;padding:12px 18px}
+summary{cursor:pointer;font-weight:600}
+#bf{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+#bres{margin-top:12px}
+.bt{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:6px 14px;margin-top:10px;max-width:480px}
+.bt .w{font-weight:600;color:#1f7a3d}
+.bt .w::after{content:" 🏆"}
+#fx{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+#fx span{position:absolute;top:-40px;font-size:22px;opacity:.75;animation:fall linear infinite}
+@keyframes fall{to{transform:translateY(112vh) rotate(200deg)}}
+@media (prefers-reduced-motion:reduce){.c.g,#fx span{animation:none}}
+</style>
+</head>
+<body>
+<div id="fx" aria-hidden="true"></div>
+<main>
+  <h1>🌻 Commit Garden</h1>
+  <p class="sub">Every commit grows a plant. Enter a GitHub username to see the garden.</p>
+  <form class="bar" id="f">
+    <input id="u" placeholder="GitHub username" aria-label="GitHub username" autocomplete="off" required>
+    <button type="submit">Grow garden</button>
+  </form>
+  <div class="plot"><div class="grid" id="grid"></div></div>
+  <p class="msg" id="msg" role="status">Your garden is waiting for a name.</p>
+  <div id="persona"></div>
+  <div class="badges" id="badges"></div>
+  <div class="stats" id="stats"></div>
+  <p class="legend">🌱 few &nbsp;🌿 some &nbsp;🌷 many &nbsp;🌻 a lot &nbsp;🌾 weeds (7+ quiet days) &nbsp;🥀 thirsty<br>
+  Click any empty soil, weed or wilted spot to plant your own seed. Click it again to dig it up. Seeds planted: <b id="seeds">0</b></p>
+  <details>
+    <summary>Garden battle (optional)</summary>
+    <form id="bf">
+      <input id="r" placeholder="Rival username" aria-label="Rival username" autocomplete="off" required>
+      <button type="submit">Battle</button>
+    </form>
+    <div id="bres"></div>
+  </details>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const API='https://github-contributions-api.jogruber.de/v4/';
+const PLANTS=['','🌱','🌿','🌷','🌻'];
+const SEEDS=['🌸','🌼','🌺','🪻','🍄','🌵','🌹','🪷'];
+const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const P={
+sparse:["Seed Collector|Plenty of packets, still deciding where to dig.","Quiet Gardener|Few plants, but each one is well chosen.","Patient Planter|Good soil takes time. Keep going.","Windowsill Grower|Starting small is still starting."],
+streak:["Streak Monk|Showed up so many days in a row the soil is concerned.","Daily Dew|Has never missed a morning watering.","Unstoppable Sprinkler|The hose has been on since forever.","Habit Hedge|Grows thick because you trim it daily."],
+burst:["Binge Bloomer|One giant day, then a quiet meadow.","Midnight Hurricane|Commits arrive in a storm, not a drizzle.","Marathon Planter|Plants a whole field in one sitting.","Sprint Sower|Nothing for days, then everything at once."],
+weekend:["Weekend Warrior|Blooms while everyone else is off the clock.","Sunday Sprouter|Waters the code only when the calendar says weekend.","Couch Committer|Pajamas on, pull requests out.","Saturday Seedling|Ideas grow best with no standup in sight."],
+early:["Monday Starter|Fresh week, fresh seeds, zero fear.","Tuesday Tiller|Digs in early before the week gets loud.","Early Week Gardener|Plants on Monday, forgets by Friday.","Fresh Start Fan|Every Monday is a new patch of soil."],
+mid:["Hump Day Hero|Midweek is when your flowers wake up.","Wednesday Weeder|Pulls bugs out right in the middle of the week.","Thursday Thumb|Your green thumb peaks just before Friday.","Middle Child Gardener|Always blooms between the loud days."],
+steady:["Steady Sprinkler|Small, regular waterings win the season.","Garden Metronome|Tick, commit, tick, commit.","Calm Cultivator|No rush, no gaps, lovely rows.","Daily Dabbler|A few seeds every day keeps weeds away."],
+wild:["Wildflower Wanderer|No pattern, just pretty chaos.","Free Range Gardener|Plants whenever the mood strikes.","Cottage Core Coder|Messy rows, charming results.","Moonlight Mulcher|Grows in unpredictable bursts."]
+};
+const hash=s=>[...s].reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,7);
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let cur=null,own=0;
+
+async function load(u){
+  const r=await fetch(API+encodeURIComponent(u)+'?y=last');
+  if(!r.ok)throw 0;
+  const d=(await r.json()).contributions;
+  if(!d||!d.length)throw 0;
+  return d;
+}
+
+function sum(d){
+  let total=0,active=0,run=0,longest=0,best=d[0],flowers=0;const wk=Array(7).fill(0);
+  d.forEach(x=>{
+    total+=x.count;wk[new Date(x.date+'T00:00:00Z').getUTCDay()]+=x.count;
+    if(x.count){active++;run++;longest=Math.max(longest,run)}else run=0;
+    if(x.count>best.count)best=x;
+    if(x.level>=3)flowers++;
+  });
+  let trail=0;for(let i=d.length-1;i>=0&&!d[i].count;i--)trail++;
+  const last30=d.slice(-30).reduce((s,x)=>s+x.count,0);
+  return{total,active,longest,best,flowers,trail,wk,last30,days:d.length};
+}
+
+function mark(d){
+  let i=0;
+  while(i<d.length){
+    if(d[i].count){i++;continue}
+    let j=i;while(j<d.length&&!d[j].count)j++;
+    const len=j-i,tail=j===d.length;
+    for(let k=i;k<j;k++)d[k].s=tail?(len>=3?'🥀':''):(len>=7?'🌾':'');
+    i=j;
+  }
+}
+
+function draw(d){
+  const g=$('grid');g.innerHTML='';own=0;$('seeds').textContent=0;
+  const pad=new Date(d[0].date+'T00:00:00Z').getUTCDay();
+  for(let i=0;i<pad;i++){const p=document.createElement('div');p.className='c pad';g.appendChild(p)}
+  d.forEach((x,i)=>{
+    const c=document.createElement('div');
+    const t=x.level?PLANTS[x.level]:(x.s||'');
+    c.className='c '+(x.level?'g':'e');
+    c.textContent=t;c.dataset.o=t;
+    c.title=x.date+': '+x.count+(x.count===1?' commit':' commits')+(x.s==='🌾'?' (weeds are growing)':x.s==='🥀'?' (thirsty)':'');
+    if(x.level)c.style.animationDelay=(i*5)+'ms';
+    g.appendChild(c);
+  });
+}
+
+function persona(u,s){
+  const t=s.total,sh=i=>t?s.wk[i]/t:0,avg=s.active?t/s.active:0;
+  let k='wild';
+  if(t<60)k='sparse';
+  else if(s.longest>=21)k='streak';
+  else if(s.best.count>=15&&s.best.count>=avg*4)k='burst';
+  else if(sh(0)+sh(6)>=.4)k='weekend';
+  else if(sh(1)+sh(2)>=.4)k='early';
+  else if(sh(3)+sh(4)>=.4)k='mid';
+  else if(s.active/s.days>=.45)k='steady';
+  const pool=P[k],[title,line]=pool[hash(u.toLowerCase())%pool.length].split('|');
+  const fav=s.wk.indexOf(Math.max(...s.wk));
+  const fact=t?`Favorite planting day: ${DAYS[fav]} (${Math.round(sh(fav)*100)}% of commits). Best day: ${s.best.date} with ${s.best.count}.`:'No seeds planted yet.';
+  $('persona').innerHTML=`<div class="persona"><h2>${esc(title)}</h2><p>${esc(line)}</p><p class="fact">${esc(fact)}</p></div>`;
+}
+
+function sky(s){
+  const m=new Date().getMonth();
+  const [se,sym,name]=m>=2&&m<=4?['spring','🌸','Spring']:m<=7&&m>=5?['summer','✨','Summer']:m<=10&&m>=8?['autumn','🍂','Autumn']:['winter','❄️','Winter'];
+  document.body.className=se;
+  let w,wt,fxs=sym;
+  if(!s){w='⛅';wt='Weather: waiting for a garden'}
+  else if(s.last30>=15){w='☀️';wt=`Sunny: ${s.last30} commits in the last 30 days`}
+  else if(s.last30>=5){w='⛅';wt=`Partly cloudy: ${s.last30} commits in the last 30 days`}
+  else{w='🌧️';wt=`Rainy: only ${s.last30} commits lately, so the rain is watering for you`;fxs='💧'}
+  $('badges').innerHTML=`<span class="badge">${sym} ${name}</span><span class="badge">${w} ${esc(wt)}</span>`;
+  const f=$('fx');f.innerHTML='';
+  for(let i=0;i<18;i++){
+    const e=document.createElement('span');e.textContent=fxs;
+    e.style.cssText=`left:${Math.random()*100}%;animation-duration:${6+Math.random()*8}s;animation-delay:${-Math.random()*10}s`;
+    f.appendChild(e);
+  }
+}
+
+function stats(s){
+  $('stats').innerHTML=
+    `<div class="stat"><b>${s.total}</b>contributions</div>`+
+    `<div class="stat"><b>${s.active}</b>days with plants</div>`+
+    `<div class="stat"><b>${s.longest}</b>day longest streak</div>`+
+    `<div class="stat"><b>${s.flowers}</b>flowers 🌷🌻</div>`;
+}
+
+async function grow(user){
+  $('msg').textContent='Planting seeds...';
+  try{
+    const d=await load(user);
+    mark(d);const s=sum(d);cur={user,s};
+    draw(d);stats(s);persona(user,s);sky(s);
+    $('msg').textContent=s.trail>=2?`Your garden has been thirsty for ${s.trail} days.`:'Freshly watered. Looking good.';
+    history.replaceState(null,'','?user='+encodeURIComponent(user));
+  }catch(e){
+    cur=null;
+    $('grid').innerHTML='';$('persona').innerHTML='';$('stats').innerHTML='';sky(null);
+    $('msg').textContent='Could not find "'+user+'". Check the spelling and try again.';
+  }
+}
+
+$('grid').addEventListener('click',e=>{
+  const c=e.target.closest('.c');if(!c)return;
+  if(c.classList.contains('e')){c.className='c g own';c.textContent=SEEDS[Math.random()*SEEDS.length|0];own++}
+  else if(c.classList.contains('own')){c.className='c e';c.textContent=c.dataset.o;own--}
+  else return;
+  $('seeds').textContent=own;
+});
+
+$('bf').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const rival=$('r').value.trim(),o=$('bres');
+  if(!cur){o.textContent='Grow your own garden first, then challenge a rival.';return}
+  o.textContent='Sending bees to the rival garden...';
+  try{
+    const b=sum(await load(rival)),a=cur.s,A=esc(cur.user),B=esc(rival);
+    const rows=[['Flowers','flowers'],['Contributions','total'],['Longest streak','longest'],['Days planted','active']];
+    const body=rows.map(([l,k])=>`<div>${l}</div><div class="${a[k]>b[k]?'w':''}">${a[k]}</div><div class="${b[k]>a[k]?'w':''}">${b[k]}</div>`).join('');
+    const key=a.flowers!==b.flowers?'flowers':'total';
+    const head=a[key]===b[key]?'It is a tie. Both gardens are equally lovely.':
+      `${a[key]>b[key]?A:B}'s garden wins with ${Math.abs(a[key]-b[key])} more ${key==='flowers'?'flowers':'contributions'}.`;
+    o.innerHTML=`<b>${head}</b><div class="bt"><div></div><b>${A}</b><b>${B}</b>${body}</div>`;
+  }catch(err){o.textContent='Could not find "'+rival+'". Check the spelling and try again.'}
+});
+
+$('f').addEventListener('submit',e=>{e.preventDefault();grow($('u').value.trim())});
+sky(null);
+const q=new URLSearchParams(location.search).get('user');
+if(q){$('u').value=q;grow(q)}
+</script>
+</body>
+</html>
